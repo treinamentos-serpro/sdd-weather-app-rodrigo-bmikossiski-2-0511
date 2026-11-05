@@ -39,8 +39,9 @@ describe("CurrentWeather", () => {
       />,
     );
 
-    expect(screen.getAllByText("Indisponível")).toHaveLength(4);
+    expect(screen.getAllByText("—")).toHaveLength(4);
     expect(screen.getByText("Condição indisponível")).toBeInTheDocument();
     expect(screen.getByText("22 °C")).toBeInTheDocument();
+    expect(screen.queryByText(/NaN|undefined/)).not.toBeInTheDocument();
   });
 });

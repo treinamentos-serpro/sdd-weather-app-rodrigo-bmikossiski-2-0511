@@ -11,3 +11,18 @@ export function convertTemperature(
 
   return Math.round(temperature);
 }
+
+export function formatTemperature(
+  temperatureC: number | null,
+  unit: Unit,
+): string {
+  const temperature = convertTemperature(temperatureC, unit);
+  if (temperature === null) return "Indisponível";
+
+  const symbol = unit === "celsius" ? "°C" : "°F";
+  return `${temperature} ${symbol}`;
+}
+
+export function unitLabel(unit: Unit): string {
+  return unit === "celsius" ? "Celsius" : "Fahrenheit";
+}

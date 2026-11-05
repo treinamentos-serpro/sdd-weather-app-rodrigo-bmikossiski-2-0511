@@ -10,7 +10,7 @@ const GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search";
 const FORECAST_URL = "https://api.open-meteo.com/v1/forecast";
 const MAX_CITY_RESULTS = 5;
 const FORECAST_DAYS = 5;
-const REQUEST_TIMEOUT_MS = 10_000;
+const REQUEST_TIMEOUT_MS = 8_000;
 
 interface OpenMeteoGeocodingResult {
   id?: number;

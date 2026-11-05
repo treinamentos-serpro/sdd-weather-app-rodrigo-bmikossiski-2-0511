@@ -2,6 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mockWeatherData } from "../../src/mocks/weatherData";
 import { getWeather, searchCities } from "../../src/services/weatherService";
+import type { City } from "../../src/types/weather";
 import { useWeather } from "../../src/hooks/useWeather";
 
 vi.mock("../../src/services/weatherService", () => ({
@@ -103,5 +104,37 @@ describe("useWeather", () => {
     expect(getWeather).toHaveBeenNthCalledWith(1, city);
     expect(getWeather).toHaveBeenNthCalledWith(2, city);
     expect(result.current.status).toBe("success");
+  });
+
+  it("ignores a stale search response after a newer search succeeds", async () => {
+    let resolveFirstSearch: (cities: City[]) => void = () => undefined;
+    vi.mocked(searchCities)
+      .mockReturnValueOnce(
+        new Promise<City[]>((resolve) => {
+          resolveFirstSearch = resolve;
+        }),
+      )
+      .mockResolvedValueOnce([city]);
+    vi.mocked(getWeather).mockResolvedValue(mockWeatherData);
+    const { result } = renderHook(() => useWeather());
+
+    let firstSearch: Promise<void> = Promise.resolve();
+    act(() => {
+      firstSearch = result.current.search("Old Town");
+    });
+    await act(async () => {
+      await result.current.search("São Paulo");
+    });
+
+    await act(async () => {
+      resolveFirstSearch([{ ...city, name: "Old Town" }]);
+      await firstSearch;
+    });
+
+    expect(result.current.status).toBe("success");
+    expect(result.current.data).toEqual(mockWeatherData);
+    expect(result.current.cities).toEqual([city]);
+    expect(getWeather).toHaveBeenCalledTimes(1);
+    expect(getWeather).toHaveBeenCalledWith(city);
   });
 });

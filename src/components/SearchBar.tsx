@@ -10,14 +10,22 @@ export default function SearchBar({
   disabled = false,
 }: SearchBarProps) {
   const inputId = useId();
+  const validationId = useId();
   const [query, setQuery] = useState("");
+  const [validationMessage, setValidationMessage] = useState("");
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const city = query.trim();
-    if (disabled || city.length === 0) return;
+    if (disabled) return;
 
+    const city = query.trim();
+    if (city.length === 0) {
+      setValidationMessage("Digite uma cidade para buscar.");
+      return;
+    }
+
+    setValidationMessage("");
     onSearch(city);
   }
 
@@ -40,11 +48,23 @@ export default function SearchBar({
           className="w-full rounded-lg border border-white/15 bg-night-900 px-3 py-2.5 text-white placeholder:text-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 disabled:cursor-not-allowed disabled:opacity-60"
           disabled={disabled}
           id={inputId}
-          onChange={(event) => setQuery(event.currentTarget.value)}
+          aria-describedby={validationMessage ? validationId : undefined}
+          aria-invalid={validationMessage ? true : undefined}
+          onChange={(event) => {
+            setQuery(event.currentTarget.value);
+            if (event.currentTarget.value.trim().length > 0) {
+              setValidationMessage("");
+            }
+          }}
           placeholder="Digite o nome da cidade"
           type="search"
           value={query}
         />
+        {validationMessage && (
+          <p className="mt-1.5 text-sm text-red-200" id={validationId} role="alert">
+            {validationMessage}
+          </p>
+        )}
       </div>
       <button
         className="w-full shrink-0 rounded-lg bg-accent-500 px-4 py-2.5 font-medium text-night-900 transition-colors hover:bg-accent-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-night-900 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"

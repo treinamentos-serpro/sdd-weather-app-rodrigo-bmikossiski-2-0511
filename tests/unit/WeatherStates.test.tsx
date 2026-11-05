@@ -30,6 +30,9 @@ describe("weather state components", () => {
       />,
     );
 
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Nenhuma cidade encontrada",
+    );
     expect(
       screen.getByRole("heading", { name: "Nenhuma cidade encontrada" }),
     ).toBeInTheDocument();

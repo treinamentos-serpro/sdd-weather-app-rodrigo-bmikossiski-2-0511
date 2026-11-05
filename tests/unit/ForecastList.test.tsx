@@ -17,7 +17,7 @@ describe("ForecastList", () => {
     expect(within(firstCard).getByText("64 °F")).toBeInTheDocument();
     expect(within(firstCard).getByText("10%")).toBeInTheDocument();
     expect(
-      within(firstCard).getByRole("img", { name: "Predominantemente limpo" }),
+      within(firstCard).getByText("Predominantemente limpo"),
     ).toBeInTheDocument();
   });
 
@@ -31,8 +31,9 @@ describe("ForecastList", () => {
     const firstCard = screen.getByRole("article", {
       name: "quinta-feira, 5 de novembro",
     });
-    expect(within(firstCard).getByText("Indisponível")).toBeInTheDocument();
+    expect(within(firstCard).getByText("—")).toBeInTheDocument();
     expect(within(firstCard).getByText("26 °C")).toBeInTheDocument();
+    expect(within(firstCard).queryByText(/NaN|undefined/)).not.toBeInTheDocument();
   });
 
   it("renders an empty state when there are no forecast days", () => {

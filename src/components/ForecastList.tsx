@@ -13,7 +13,7 @@ export default function ForecastList({ forecast, unit }: ForecastListProps) {
         className="mb-3 text-lg font-semibold text-white"
         id="forecast-heading"
       >
-        Previsão para os próximos dias
+        Previsão de 5 dias
       </h2>
 
       {forecast.length === 0 ? (

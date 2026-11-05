@@ -54,6 +54,7 @@ describe("App", () => {
     expect(await screen.findByRole("status")).toHaveTextContent(
       "Consultando o clima de São Paulo...",
     );
+    expect(screen.getByRole("main")).toHaveAttribute("aria-busy", "true");
 
     await act(async () => {
       resolveSearch([city]);
@@ -70,7 +71,7 @@ describe("App", () => {
     await submitCity("Recife");
 
     expect(
-      await screen.findByRole("heading", { name: "Cidade não encontrada" }),
+      await screen.findByRole("heading", { name: "Nenhuma cidade encontrada" }),
     ).toBeInTheDocument();
     expect(getWeather).not.toHaveBeenCalled();
   });
@@ -92,7 +93,78 @@ describe("App", () => {
     expect(
       await screen.findByRole("heading", { name: "Clima atual" }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", {
+        name: "Dados meteorológicos para São Paulo, Brasil",
+      }),
+    ).toHaveFocus();
     expect(searchCities).toHaveBeenCalledTimes(2);
+  });
+
+  it("renders a forecast API error and retries the lookup", async () => {
+    vi.mocked(searchCities).mockResolvedValue([city]);
+    vi.mocked(getWeather)
+      .mockRejectedValueOnce(new Error("Falha na consulta de previsão (HTTP 503)."))
+      .mockResolvedValueOnce(mockWeatherData);
+    render(<App />);
+
+    await submitCity("São Paulo");
+    expect(await screen.findByRole("alert")).toHaveTextContent("HTTP 503");
+
+    await userEvent.setup().click(
+      screen.getByRole("button", { name: "Tentar novamente" }),
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "Clima atual" }),
+    ).toBeInTheDocument();
+    expect(searchCities).toHaveBeenCalledTimes(2);
+    expect(getWeather).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows valid forecast when current measurements are missing", async () => {
+    vi.mocked(searchCities).mockResolvedValue([city]);
+    vi.mocked(getWeather).mockResolvedValue({
+      ...mockWeatherData,
+      current: {
+        ...mockWeatherData.current!,
+        temperatureC: null,
+        weatherCode: null,
+      },
+    });
+    render(<App />);
+
+    await submitCity("São Paulo");
+
+    expect(await screen.findByText("Indisponível")).toBeInTheDocument();
+    expect(screen.getByText("26 °C")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Previsão de 5 dias" })).toBeVisible();
+  });
+
+  it("applies a unit change made while weather data is loading", async () => {
+    let resolveWeather: (weather: WeatherData) => void = () => undefined;
+    vi.mocked(searchCities).mockResolvedValue([city]);
+    vi.mocked(getWeather).mockReturnValue(
+      new Promise<WeatherData>((resolve) => {
+        resolveWeather = resolve;
+      }),
+    );
+    render(<App />);
+
+    await submitCity("São Paulo");
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Consultando o clima de São Paulo...",
+    );
+    await userEvent.setup().click(
+      screen.getByRole("button", { name: "Fahrenheit" }),
+    );
+
+    await act(async () => {
+      resolveWeather(mockWeatherData);
+    });
+
+    expect(screen.getByText("72 °F")).toBeInTheDocument();
+    expect(getWeather).toHaveBeenCalledTimes(1);
   });
 
   it("renders success, allows selecting another result, and derives unit in the UI", async () => {

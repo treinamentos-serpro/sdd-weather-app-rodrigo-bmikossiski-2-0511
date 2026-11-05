@@ -98,4 +98,140 @@ describe("getWeather", () => {
       expect(error).toMatchObject({ kind: "invalid-response" });
     },
   );
+
+  it.each([429, 503])(
+    "throws WeatherServiceError for forecast HTTP %i",
+    async (status) => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({ ok: false, status }),
+      );
+
+      const error = await getWeather(mockWeatherData.city).catch(
+        (caught: unknown) => caught,
+      );
+
+      expect(error).toBeInstanceOf(WeatherServiceError);
+      expect(error).toMatchObject({ kind: "http", statusCode: status });
+    },
+  );
+
+  it("throws WeatherServiceError for malformed forecast JSON", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => {
+          throw new SyntaxError("invalid JSON");
+        },
+      }),
+    );
+
+    const error = await getWeather(mockWeatherData.city).catch(
+      (caught: unknown) => caught,
+    );
+
+    expect(error).toBeInstanceOf(WeatherServiceError);
+    expect(error).toMatchObject({ kind: "invalid-response" });
+  });
+
+  it("rejects forecasts with fewer than five dates", async () => {
+    const payload = createForecastPayload();
+    payload.daily.time.pop();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => payload,
+      }),
+    );
+
+    const error = await getWeather(mockWeatherData.city).catch(
+      (caught: unknown) => caught,
+    );
+
+    expect(error).toBeInstanceOf(WeatherServiceError);
+    expect(error).toMatchObject({ kind: "invalid-response" });
+  });
+
+  it("keeps missing and null measurements unavailable in a partial response", async () => {
+    const payload = createForecastPayload();
+    const currentPayload = payload.current as unknown as Record<string, unknown>;
+    const dailyPayload = payload.daily as unknown as Record<string, unknown>;
+    delete currentPayload.temperature_2m;
+    delete currentPayload.relative_humidity_2m;
+
+    const minimums = dailyPayload.temperature_2m_min as number[];
+    delete minimums[0];
+    const maximums = dailyPayload.temperature_2m_max as number[];
+    maximums.length = 4;
+    const precipitationProbabilities =
+      dailyPayload.precipitation_probability_max as (number | null)[];
+    precipitationProbabilities[0] = null;
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => payload,
+      }),
+    );
+
+    const weather = await getWeather(mockWeatherData.city);
+
+    expect(weather.current?.temperatureC).toBeNull();
+    expect(weather.current?.humidityPercent).toBeNull();
+    expect(weather.current?.windSpeedKmh).toBe(13.5);
+    expect(weather.forecast[0]?.temperatureMinC).toBeNull();
+    expect(weather.forecast[0]?.temperatureMaxC).toBe(26);
+    expect(weather.forecast[0]?.precipitationProbabilityPercent).toBeNull();
+    expect(weather.forecast[4]?.temperatureMaxC).toBeNull();
+    expect(weather.forecast[4]?.weatherCode).toBe(80);
+  });
+
+  it("maps absent and non-finite measurements to null", async () => {
+    const payload = createForecastPayload();
+    const currentPayload = payload.current as unknown as Record<string, unknown>;
+    const dailyPayload = payload.daily as unknown as Record<string, unknown>;
+    delete currentPayload.temperature_2m;
+    delete currentPayload.weather_code;
+    delete currentPayload.relative_humidity_2m;
+    delete currentPayload.wind_speed_10m;
+    currentPayload.precipitation = Number.NaN;
+    currentPayload.surface_pressure = Number.POSITIVE_INFINITY;
+    delete dailyPayload.temperature_2m_min;
+    delete dailyPayload.temperature_2m_max;
+    delete dailyPayload.weather_code;
+    delete dailyPayload.precipitation_probability_max;
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => payload,
+      }),
+    );
+
+    const weather = await getWeather(mockWeatherData.city);
+
+    expect(weather.current).toMatchObject({
+      temperatureC: null,
+      weatherCode: null,
+      humidityPercent: null,
+      windSpeedKmh: null,
+      precipitationMm: null,
+      pressureHpa: null,
+    });
+    expect(weather.forecast).toHaveLength(5);
+    expect(weather.forecast[0]).toMatchObject({
+      temperatureMinC: null,
+      temperatureMaxC: null,
+      weatherCode: null,
+      precipitationProbabilityPercent: null,
+    });
+  });
 });

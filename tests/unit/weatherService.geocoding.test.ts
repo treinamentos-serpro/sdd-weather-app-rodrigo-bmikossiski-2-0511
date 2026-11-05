@@ -12,7 +12,7 @@ afterEach(() => {
 });
 
 describe("fetchWithTimeout", () => {
-  it("converts an abort after 10 seconds and clears the timer", async () => {
+  it("converts an abort after 8 seconds and clears the timer", async () => {
     vi.useFakeTimers();
     const clearTimeoutSpy = vi.spyOn(globalThis, "clearTimeout");
     const fetchMock = vi.fn(
@@ -28,7 +28,7 @@ describe("fetchWithTimeout", () => {
     const request = fetchWithTimeout("https://example.test/data");
     const result = request.catch((error: unknown) => error);
 
-    await vi.advanceTimersByTimeAsync(10_000);
+    await vi.advanceTimersByTimeAsync(8_000);
     const error = await result;
 
     expect(error).toBeInstanceOf(WeatherServiceError);
@@ -117,6 +117,56 @@ describe("searchCities", () => {
     ]);
   });
 
+  it("preserves accents, apostrophes, and hyphens in city names", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        results: [
+          {
+            name: "L'Haÿ-les-Roses",
+            latitude: 48.78,
+            longitude: 2.32,
+          },
+        ],
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const cities = await searchCities("L'Haÿ-les-Roses");
+    const [url] = fetchMock.mock.calls[0] as [string];
+
+    expect(new URL(url).searchParams.get("name")).toBe("L'Haÿ-les-Roses");
+    expect(cities[0]?.name).toBe("L'Haÿ-les-Roses");
+  });
+
+  it("returns at most five cities in the provider's original order", async () => {
+    const results = Array.from({ length: 6 }, (_, index) => ({
+      name: `Cidade ${index + 1}`,
+      latitude: index,
+      longitude: -index,
+    }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ results }),
+      }),
+    );
+
+    const cities = await searchCities("Cidade");
+
+    expect(cities).toHaveLength(5);
+    expect(cities.map((city) => city.name)).toEqual([
+      "Cidade 1",
+      "Cidade 2",
+      "Cidade 3",
+      "Cidade 4",
+      "Cidade 5",
+    ]);
+  });
+
   it("throws WeatherServiceError for a non-ok response", async () => {
     vi.stubGlobal(
       "fetch",
@@ -132,4 +182,20 @@ describe("searchCities", () => {
       statusCode: 503,
     });
   });
+
+  it.each([undefined, []])(
+    "returns an empty list when results is %s",
+    async (results) => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          status: 200,
+          json: async () => (results === undefined ? {} : { results }),
+        }),
+      );
+
+      await expect(searchCities("Cidade inexistente")).resolves.toEqual([]);
+    },
+  );
 });

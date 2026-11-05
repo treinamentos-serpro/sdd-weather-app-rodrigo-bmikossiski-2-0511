@@ -8,10 +8,22 @@ interface CurrentWeatherProps {
   unit: Unit;
 }
 
-function formatMetric(value: number | null, maximumFractionDigits = 0): string {
-  if (value === null || !Number.isFinite(value)) return "Indisponível";
+function formatMetric(
+  value: number | null | undefined,
+  maximumFractionDigits = 0,
+): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "—";
 
   return new Intl.NumberFormat("pt-BR", { maximumFractionDigits }).format(value);
+}
+
+function formatMetricWithUnit(
+  value: number | null | undefined,
+  unit: string,
+  maximumFractionDigits = 0,
+): string {
+  const formattedValue = formatMetric(value, maximumFractionDigits);
+  return formattedValue === "—" ? formattedValue : `${formattedValue}${unit}`;
 }
 
 export default function CurrentWeather({
@@ -62,33 +74,25 @@ export default function CurrentWeather({
         <div className="rounded-xl border border-white/10 bg-night-800/60 p-3">
           <dt className="text-xs text-white/75">Umidade</dt>
           <dd className="mt-1 text-base font-medium text-white">
-            {current.humidityPercent === null
-              ? "Indisponível"
-              : `${formatMetric(current.humidityPercent)}%`}
+            {formatMetricWithUnit(current.humidityPercent, "%")}
           </dd>
         </div>
         <div className="rounded-xl border border-white/10 bg-night-800/60 p-3">
           <dt className="text-xs text-white/75">Vento</dt>
           <dd className="mt-1 text-base font-medium text-white">
-            {current.windSpeedKmh === null
-              ? "Indisponível"
-              : `${formatMetric(current.windSpeedKmh, 1)} km/h`}
+            {formatMetricWithUnit(current.windSpeedKmh, " km/h", 1)}
           </dd>
         </div>
         <div className="rounded-xl border border-white/10 bg-night-800/60 p-3">
           <dt className="text-xs text-white/75">Precipitação</dt>
           <dd className="mt-1 text-base font-medium text-white">
-            {current.precipitationMm === null
-              ? "Indisponível"
-              : `${formatMetric(current.precipitationMm, 1)} mm`}
+            {formatMetricWithUnit(current.precipitationMm, " mm", 1)}
           </dd>
         </div>
         <div className="rounded-xl border border-white/10 bg-night-800/60 p-3">
           <dt className="text-xs text-white/75">Pressão</dt>
           <dd className="mt-1 text-base font-medium text-white">
-            {current.pressureHpa === null
-              ? "Indisponível"
-              : `${formatMetric(current.pressureHpa)} hPa`}
+            {formatMetricWithUnit(current.pressureHpa, " hPa")}
           </dd>
         </div>
       </dl>

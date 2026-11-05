@@ -8,8 +8,8 @@ interface ForecastCardProps {
   unit: Unit;
 }
 
-function formatMetric(value: number | null): string {
-  if (value === null || !Number.isFinite(value)) return "Indisponível";
+function formatMetric(value: number | null | undefined): string | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
   return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 }).format(value);
 }
 
@@ -18,6 +18,9 @@ export default function ForecastCard({ day, unit }: ForecastCardProps) {
   const minimum = convertTemperature(day.temperatureMinC, unit);
   const unitSymbol = unit === "celsius" ? "°C" : "°F";
   const weather = getWeatherPresentation(day.weatherCode);
+  const precipitationProbability = formatMetric(
+    day.precipitationProbabilityPercent,
+  );
 
   return (
     <article
@@ -32,28 +35,35 @@ export default function ForecastCard({ day, unit }: ForecastCardProps) {
           {formatDayLabel(day.date)}
         </h3>
         <span
-          aria-label={weather.description}
+          aria-hidden="true"
           className="shrink-0 text-2xl"
-          role="img"
         >
           {weather.icon}
         </span>
       </header>
 
-      <p className="mt-3 text-xl font-semibold text-white">
-        {maximum === null ? "—" : `${maximum} ${unitSymbol}`}
-        <span className="ml-2 text-sm font-normal text-white/75">
-          {minimum === null ? "—" : `${minimum} ${unitSymbol}`}
-        </span>
-      </p>
+      <dl className="mt-3 grid grid-cols-2 gap-2">
+        <div>
+          <dt className="text-xs text-white/75">Máx.</dt>
+          <dd className="text-lg font-semibold text-white">
+            {maximum === null ? "—" : `${maximum} ${unitSymbol}`}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs text-white/75">Mín.</dt>
+          <dd className="text-lg font-semibold text-white">
+            {minimum === null ? "—" : `${minimum} ${unitSymbol}`}
+          </dd>
+        </div>
+      </dl>
       <p className="mt-1 min-h-10 text-sm text-white/75">{weather.description}</p>
 
       <dl className="mt-3 border-t border-white/10 pt-3">
         <dt className="text-xs text-white/75">Prob. de chuva</dt>
         <dd className="mt-1 text-sm font-medium text-white">
-          {day.precipitationProbabilityPercent === null
-            ? "Indisponível"
-            : `${formatMetric(day.precipitationProbabilityPercent)}%`}
+          {precipitationProbability === null
+            ? "—"
+            : `${precipitationProbability}%`}
         </dd>
       </dl>
     </article>

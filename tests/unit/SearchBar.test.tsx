@@ -33,10 +33,31 @@ describe("SearchBar", () => {
 
     await user.click(screen.getByRole("button", { name: "Buscar" }));
     expect(onSearch).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Digite uma cidade para buscar.",
+    );
+    expect(screen.getByRole("searchbox", { name: "Cidade" })).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
 
     rerender(<SearchBar disabled onSearch={onSearch} />);
     expect(screen.getByRole("searchbox", { name: "Cidade" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Buscar" })).toBeDisabled();
     expect(input).toBeDisabled();
+  });
+
+  it("rejects whitespace-only queries with an announced validation message", async () => {
+    const user = userEvent.setup();
+    const onSearch = vi.fn();
+    render(<SearchBar onSearch={onSearch} />);
+
+    await user.type(screen.getByRole("searchbox", { name: "Cidade" }), "   ");
+    await user.click(screen.getByRole("button", { name: "Buscar" }));
+
+    expect(onSearch).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Digite uma cidade para buscar.",
+    );
   });
 });
